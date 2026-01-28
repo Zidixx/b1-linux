@@ -136,7 +136,7 @@ route -n get default
 ### Gateway du réseau WiFi
 
 ```
-10.33.64.1
+10.33.79.254
 ```
 
 ---
@@ -172,7 +172,7 @@ de:fd:b4:91:68:d8
 Gateway (Routeur) :
 
 ```
-10.33.64.1
+10.33.79.254
 ```
 
 ---
@@ -209,7 +209,7 @@ Adresse IP | 10.33.69.207
 Masque | 255.255.240.0 (/20)
 Adresse réseau | 10.33.64.0
 Broadcast | 10.33.79.255
-Gateway | 10.33.64.1
+Gateway | 10.33.79.254
 
 ---
 
@@ -281,7 +281,7 @@ Masque :
 Gateway :
 
 ```
-10.33.64.1
+10.33.79.254
 ```
 
 ---
@@ -359,7 +359,7 @@ Masque :
 Gateway :
 
 ```
-10.33.64.1
+10.33.79.254
 ```
 
 ---
@@ -375,5 +375,242 @@ ping 8.8.8.8
 Résultat :
 
 Connexion Internet fonctionnelle, les paquets ICMP sont correctement reçus.
+
+---
+
+
+# III. Manipulations d'autres outils et protocoles côté client
+
+---
+
+## 1. DHCP
+
+---
+
+### Affichage des informations DHCP
+
+Commande utilisée :
+
+```bash
+ipconfig getpacket en0
+```
+
+Cette commande permet d’afficher les informations DHCP reçues par la carte WiFi.
+
+---
+
+### Serveur DHCP du réseau Ingésup
+
+Serveur DHCP :
+
+```
+10.33.79.254
+```
+
+---
+
+### Bail DHCP (DHCP Lease)
+
+Le bail DHCP correspond à la durée pendant laquelle l’adresse IP est valide.
+
+Exemple :
+
+```
+lease_time = 35305 secondes
+```
+
+Soit :
+
+```
+environ 9 heures 48 minutes
+```
+
+---
+
+### Fonctionnement du DHCP (résumé)
+
+Le protocole DHCP fonctionne en 4 étapes (DORA) :
+
+1. Discover → le client cherche un serveur DHCP
+2. Offer → le serveur propose une IP
+3. Request → le client accepte l’offre
+4. Acknowledge → le serveur valide l’attribution
+
+Cela permet d’attribuer automatiquement :
+
+- une adresse IP
+- un masque
+- une gateway
+- des DNS
+
+---
+
+### Renouvellement de l’adresse IP
+
+Commande utilisée :
+
+```bash
+sudo ipconfig set en0 DHCP
+```
+
+Résultat :
+
+Une nouvelle adresse IP est demandée automatiquement au serveur DHCP.
+
+---
+
+## 2. DNS
+
+---
+
+### Affichage du serveur DNS utilisé
+
+Commande utilisée :
+
+```bash
+scutil --dns
+```
+
+Résultat :
+
+Serveur DNS principal :
+
+```
+8.8.8.8
+1.1.1.1
+```
+
+---
+
+### Lookup DNS (résolution nom → IP)
+
+---
+
+#### Google
+
+Commande :
+
+```bash
+dig google.com
+```
+
+Résultat :
+
+Une ou plusieurs adresses IP sont retournées correspondant aux serveurs Google.
+
+Cela montre que le DNS traduit un nom de domaine en adresse IP.
+
+---
+
+#### Ynov
+
+Commande :
+
+```bash
+dig ynov.com
+```
+
+Résultat :
+
+Le serveur DNS retourne l’adresse IP du site ynov.com.
+
+---
+
+### Reverse Lookup (IP → nom)
+
+---
+
+#### Adresse 78.78.21.21
+
+Commande :
+
+```bash
+dig -x 78.78.21.21
+```
+
+Résultat :
+
+host-78-78-21-21.mobileonline.telia.com
+
+---
+
+#### Adresse 92.16.54.88
+
+Commande :
+
+```bash
+dig -x 92.16.54.88
+```
+
+Résultat :
+
+host-92-16-54-88.as13285.net
+
+---
+
+## 3. Bonus — Approfondissement
+
+---
+
+Wireshark peut être utilisé pour observer :
+
+- les requêtes DHCP
+- les échanges DNS
+- les paquets ICMP (ping)
+
+La différence entre WiFi et Ethernet :
+
+- Ethernet est plus stable et rapide
+- WiFi est plus flexible mais sensible aux interférences
+
+---
+
+## Bilan du TP
+
+---
+
+### Outils utilisés
+
+- ifconfig → affichage interfaces réseau
+- ping → test connectivité
+- nmap → scan réseau
+- dig → requêtes DNS
+- Wireshark → analyse trafic réseau
+
+---
+
+### Notions importantes
+
+Pour qu’un ordinateur communique en réseau :
+
+- il doit posséder une carte réseau
+- une adresse MAC
+- une adresse IP
+- une liaison physique (WiFi ou câble)
+
+---
+
+### Rôles réseau importants
+
+Gateway :
+
+- permet l’accès Internet
+
+DNS :
+
+- traduit noms de domaine vers IP
+
+DHCP :
+
+- attribue automatiquement les paramètres réseau
+
+---
+
+Chez soi, la box Internet joue les rôles de :
+
+- routeur
+- serveur DHCP
+- serveur DNS
+- passerelle Internet
 
 ---
