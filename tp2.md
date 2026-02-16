@@ -614,3 +614,226 @@ Chez soi, la box Internet joue les rôles de :
 - passerelle Internet
 
 ---
+
+# IV. Exploration locale en duo (RJ45 + Gateway + Netcat + Wireshark)
+
+---
+
+## 1. Création d’un réseau local entre deux Macs
+
+Connexion via câble RJ45.
+
+Interfaces utilisées :
+
+- Nathan : en7
+- Enzo : en6
+
+Réseau choisi :
+
+```
+172.16.18.0/24
+```
+
+Configuration Nathan :
+
+```bash
+sudo ifconfig en7 172.16.18.1 netmask 255.255.255.0 up
+```
+
+Configuration Enzo :
+
+```bash
+sudo ifconfig en6 172.16.18.2 netmask 255.255.255.0 up
+```
+
+Vérification :
+
+```bash
+ifconfig en7
+ifconfig en6
+```
+
+Test connectivité :
+
+```bash
+ping 172.16.18.2
+ping 172.16.18.1
+```
+
+Communication validée.
+
+### Capture Wireshark – Ping local entre les deux machines (RJ45)
+
+![Wireshark Ping Local](images/wireshark_icmp_local.png)
+
+---
+
+---
+
+## 2. Tests avec différents masques
+
+### /20
+
+```
+172.16.16.1/20
+172.16.16.2/20
+```
+
+### /24
+
+```
+172.16.18.1/24
+172.16.18.2/24
+```
+
+### /30 (plus petit réseau possible pour 2 hôtes)
+
+```
+192.168.1.1/30
+192.168.1.2/30
+```
+
+---
+
+## 3. Utilisation d’un Mac comme passerelle (Gateway)
+
+Objectif : permettre à Enzo d’accéder à Internet via le Mac de Nathan.
+
+### Sur le Mac de Nathan (avec WiFi actif)
+
+Activation du routage IP :
+
+```bash
+sudo sysctl -w net.inet.ip.forwarding=1
+```
+
+Activation du NAT (WiFi = en0) :
+
+```bash
+echo "nat on en0 from 172.16.18.0/24 to any -> (en0)" | sudo pfctl -f -
+sudo pfctl -e
+```
+
+---
+
+### Sur le Mac d’Enzo (WiFi désactivé)
+
+Désactivation du WiFi :
+
+```bash
+networksetup -setairportpower en0 off
+```
+
+Ajout de la passerelle :
+
+```bash
+sudo route add default 172.16.18.1
+```
+
+Test :
+
+```bash
+ping 8.8.8.8
+```
+
+Internet accessible via le Mac de Nathan.
+
+### Capture Wireshark – Ping Internet via Gateway
+
+![Wireshark Ping Internet](images/wireshark_ping_8.8.8.8.png)
+
+---
+
+---
+
+## 4. Communication avec Netcat
+
+Nathan (serveur) :
+
+```bash
+nc -l 8888
+```
+
+Enzo (client) :
+
+```bash
+nc 172.16.18.1 8888
+```
+
+Communication TCP bidirectionnelle validée.
+
+### Capture – Gateway + NAT + Netcat
+
+![Gateway NAT Netcat](images/gateway_nat_netcat.png)
+
+---
+
+---
+
+## 5. Analyse avec Wireshark
+
+Interface capturée :
+
+```
+USB 10/100/1000 LAN : en7
+```
+
+Filtres utilisés :
+
+- ICMP :
+```
+icmp
+```
+
+- Netcat (port 8888) :
+```
+tcp.port == 8888
+```
+
+- Routage :
+```
+ip.addr == 172.16.18.1
+```
+
+Observation des trames :
+
+- ICMP Echo Request / Reply
+- Handshake TCP (SYN, SYN-ACK, ACK)
+- Paquets NAT vers Internet
+
+---
+
+## 6. Firewall
+
+Activation du firewall (pf) :
+
+```bash
+sudo pfctl -e
+```
+
+Autorisation ICMP et port 8888 configurée.
+
+### Capture – Configuration du Firewall (PF)
+
+![Firewall PF](images/firewall_pf_rules.png)
+
+---
+
+---
+
+## Conclusion générale du TP
+
+Ce TP a permis de :
+
+- créer un réseau local manuellement
+- configurer des adresses IP statiques
+- comprendre le rôle du masque réseau
+- utiliser un poste comme routeur
+- mettre en place un NAT
+- établir une communication TCP simple
+- analyser les trames réseau avec Wireshark
+- manipuler les bases d’un firewall
+
+Le fonctionnement d’un réseau local, du routage et de la communication TCP/IP a été validé expérimentalement.
+
+---
