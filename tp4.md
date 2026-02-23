@@ -1,348 +1,178 @@
 
 
-# TP4 — Administration SSH et Serveur Web Nginx
-
-Auteur : Nathan  
-Environnement : Ubuntu Server (VM VirtualBox)
+# TP – Administration SSH et Serveur Web Nginx
 
 ---
 
-# Partie 1 — Mise en place de la VM
+## Partie 1 – VM Ubuntu
 
-## Configuration VM
-
-- 2 Go RAM
-- 20 Go disque
+- VM Ubuntu créée (2 Go RAM, 20 Go disque)
 - Réseau : Bridged Adapter
-
-Vérification IP sur la VM :
-
-```bash
-ip a
-```
-
-Test depuis la machine hôte :
-
-```bash
-ping <IP_VM>
-```
-
-La VM est accessible depuis l’hôte.
+- IP obtenue : 192.168.64.8
+- Vérification : `ip a` et `ping`
 
 ---
 
-# Partie 2 — Installation et configuration SSH
+## Partie 2 – Serveur SSH
 
-## Installation
-
+- Installation :
 ```bash
-sudo apt update
-sudo apt install openssh-server -y
+sudo apt install openssh-server
 ```
 
-## Vérification service
-
+- Vérification service :
 ```bash
 sudo systemctl status ssh
-ss -tulnp | grep ssh
 ```
 
-Le service SSH écoute sur le port 22.
-
-## Connexion depuis l’hôte
+- Changement port 2222 confirmé :
 
 ```bash
-ssh etudiant@<IP_VM>
+sudo ss -tulnp | grep 2222
 ```
 
-## Génération clé SSH côté client
+![SSH port 2222 listening](images/01_ssh_port_2222_listening.png)
+
+- Connexion SSH sur port 2222 :
 
 ```bash
-ssh-keygen
+ssh -p 2222 zidixx@192.168.64.8
 ```
 
-Copie clé vers serveur :
-
-```bash
-ssh-copy-id etudiant@<IP_VM>
-```
-
-Connexion sans mot de passe validée.
+![SSH connection port 2222](images/02_ssh_connection_port_2222.png)
 
 ---
 
-# Partie 3 — Sécurisation SSH
+## Partie 3 – Sécurisation SSH
 
-Édition configuration :
+Dans `/etc/ssh/sshd_config` :
 
-```bash
-sudo nano /etc/ssh/sshd_config
-```
+- `PermitRootLogin no`
+- `PasswordAuthentication no`
+- `Port 2222`
 
-Modifications :
-
-```
-PermitRootLogin no
-PasswordAuthentication no
-Port 2222
-```
-
-Redémarrage SSH :
+Refus utilisateur inexistant :
 
 ```bash
-sudo systemctl restart ssh
+ssh -p 2222 fakeuser@192.168.64.8
 ```
 
-Connexion avec nouveau port :
+![SSH fakeuser refused](images/06_ssh_fakeuser_refused.png)
 
-```bash
-ssh -p 2222 etudiant@<IP_VM>
-```
+Tentatives répétées :
 
-## Alias SSH
-
-Sur machine cliente :
-
-```bash
-nano ~/.ssh/config
-```
-
-Ajout :
-
-```
-Host serveur-tp
-    HostName <IP_VM>
-    User etudiant
-    Port 2222
-```
-
-Connexion simplifiée :
-
-```bash
-ssh serveur-tp
-```
+![SSH fakeuser spam refused](images/07_ssh_fakeuser_refused_spam.png)
 
 ---
 
-# Partie 4 — Transfert de fichiers
+## Partie 4 – Transfert de fichiers
 
-## SCP
-
-```bash
-scp fichier.txt serveur-tp:/home/etudiant/
-```
-
-## SFTP
+### SCP
 
 ```bash
-sftp serveur-tp
-put fichier.txt
-ls
-get fichier.txt
+scp -P 2222 fichier.txt zidixx@192.168.64.8:/home/zidixx/
 ```
 
-## RSYNC
+![SCP transfer OK](images/03_scp_transfer_ok.png)
+
+### SFTP
 
 ```bash
-rsync -avz dossier/ serveur-tp:/home/etudiant/dossier/
+sftp -P 2222 zidixx@192.168.64.8
 ```
+
+Commandes utilisées : `ls`, `put`, `get`
+
+![SFTP transfer OK](images/04_sftp_transfer_ok.png)
 
 ---
 
-# Partie 5 — Logs et sécurité
+## Partie 5 – Fail2Ban
 
-## Logs SSH
-
-```bash
-sudo tail -f /var/log/auth.log
-```
-
-Observation des connexions et tentatives.
-
-## Installation Fail2Ban
+Vérification jail SSH :
 
 ```bash
-sudo apt install fail2ban -y
-sudo systemctl enable fail2ban
-sudo systemctl start fail2ban
+sudo fail2ban-client status sshd
 ```
 
-Vérification :
-
-```bash
-sudo fail2ban-client status
-```
-
-Fail2Ban bloque les IP après tentatives échouées répétées.
+Fail2Ban actif et surveillance du service SSH.
 
 ---
 
-# Partie 6 — Tunnel SSH
+## Partie 6 – Tunnel SSH
 
-## Tunnel local
-
-```bash
-ssh -L 8080:localhost:80 serveur-tp
-```
-
-Permet d’accéder au service web distant via :
-
-```
-http://localhost:8080
-```
-
-## Tunnel distant
+Tunnel local utilisé :
 
 ```bash
-ssh -R 2223:localhost:22 serveur-tp
+ssh -p 2222 -L 9090:localhost:80 zidixx@192.168.64.8
 ```
 
-Permet accès SSH au client via le serveur.
+Accès au site via port local redirigé.
 
 ---
 
-# Partie 7 — Installation Nginx + HTTPS
+## Partie 7 – Nginx et HTTPS
 
-## Installation
-
-```bash
-sudo apt install nginx -y
-```
-
-## Création site
+Installation :
 
 ```bash
-sudo mkdir -p /var/www/site-tp
-sudo nano /var/www/site-tp/index.html
+sudo apt install nginx
 ```
 
-Contenu :
-
-```html
-<h1>Bienvenue sur le site TP4</h1>
-```
-
-## Configuration Nginx HTTP
+Création certificat auto-signé :
 
 ```bash
-sudo nano /etc/nginx/sites-available/site-tp
+openssl req -x509 -nodes -days 365 -newkey rsa:2048
 ```
 
-Configuration :
+![OpenSSL selfsigned prompt](images/08_openssl_selfsigned_prompt.png)
 
-```
-server {
-    listen 80;
-    server_name <IP_VM>;
-
-    root /var/www/site-tp;
-    index index.html;
-}
-```
-
-Activation :
+Fichiers SSL créés :
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/site-tp /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl restart nginx
+ls -l /etc/nginx/ssl
+```
+
+![Nginx SSL files list](images/09_nginx_ssl_files_list.png)
+
+Redirection HTTP → HTTPS vérifiée :
+
+```bash
+curl -I http://localhost
+curl -k https://localhost
 ```
 
 ---
 
-## Certificat SSL auto-signé
+## Partie 8 – Firewall
+
+Activation UFW :
 
 ```bash
-sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
--keyout /etc/ssl/private/site-tp.key \
--out /etc/ssl/certs/site-tp.crt
-```
-
-Ajout HTTPS + redirection :
-
-```
-server {
-    listen 80;
-    server_name <IP_VM>;
-    return 301 https://$host$request_uri;
-}
-
-server {
-    listen 443 ssl;
-    server_name <IP_VM>;
-
-    ssl_certificate /etc/ssl/certs/site-tp.crt;
-    ssl_certificate_key /etc/ssl/private/site-tp.key;
-
-    root /var/www/site-tp;
-    index index.html;
-}
-```
-
-Redémarrage :
-
-```bash
-sudo nginx -t
-sudo systemctl restart nginx
-```
-
-Test :
-
-```bash
-curl -k https://<IP_VM>
-```
-
----
-
-# Partie 8 — Firewall et permissions
-
-## Activation UFW
-
-```bash
-sudo ufw allow OpenSSH
 sudo ufw allow 'Nginx Full'
+sudo ufw allow 2222/tcp
 sudo ufw enable
 sudo ufw status
 ```
 
-## Permissions
+![UFW firewall active](images/05_ufw_firewall_active.png)
 
-```bash
-sudo chown -R www-data:www-data /var/www/site-tp
-sudo chmod -R 755 /var/www/site-tp
-```
+Règles actives :
 
-Nginx peut lire les fichiers correctement.
+![UFW rules nginx ssh](images/10_ufw_rules_nginx_ssh.png)
 
 ---
 
-# Partie 9 — Validation finale
+## Partie 9 – Validation finale
 
-✔ SSH fonctionne sur port 2222  
-✔ Authentification par clé uniquement  
-✔ Root désactivé  
-✔ Fail2Ban actif  
-✔ SCP / SFTP / RSYNC fonctionnels  
-✔ Nginx accessible en HTTP et HTTPS  
-✔ Redirection HTTP → HTTPS active  
-✔ Certificat auto-signé valide  
-✔ Firewall configuré  
-✔ Permissions correctes
+- SSH fonctionne sur port 2222
+- Authentification par clé uniquement
+- Utilisateur invalide refusé
+- Fail2Ban actif
+- SCP et SFTP fonctionnels
+- Nginx accessible en HTTP et HTTPS
+- Redirection HTTP → HTTPS active
+- Certificat SSL auto-signé valide
+- Firewall actif avec règles SSH + Nginx
 
----
-
-# Conclusion
-
-Ce TP a permis de :
-
-- Mettre en place un serveur SSH sécurisé
-- Implémenter une authentification par clé
-- Sécuriser un service avec Fail2Ban
-- Déployer un serveur web Nginx
-- Configurer HTTPS avec certificat SSL
-- Gérer firewall et permissions
-- Comprendre les tunnels SSH
-
-L’administration sécurisée d’un serveur Linux a été validée.
-
----
+TP validé.
